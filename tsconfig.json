@@ -3,6 +3,11 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "paths": {
+      "AngularMaterialJalaliDatepickerAdapter": [
+        "./dist/angular-material-jalali-datepicker-adapter"
+      ]
+    },
     "outDir": "./dist/out-tsc",
     "strict": true,
     "noImplicitOverride": true,
