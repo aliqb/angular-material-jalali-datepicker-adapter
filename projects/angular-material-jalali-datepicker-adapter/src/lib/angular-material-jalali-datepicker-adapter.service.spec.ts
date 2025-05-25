@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { AngularMaterialJalaliDatepickerAdapterService } from './angular-material-jalali-datepicker-adapter.service';
+import { JalaliDateService } from './jalali-date.service';
 
 describe('AngularMaterialJalaliDatepickerAdapterService', () => {
-  let service: AngularMaterialJalaliDatepickerAdapterService;
+  let service: JalaliDateService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(AngularMaterialJalaliDatepickerAdapterService);
+    service = TestBed.inject(JalaliDateService);
   });
 
   it('should be created', () => {
