@@ -4,7 +4,6 @@ import { Injectable } from '@angular/core';
   providedIn: 'root'
 })
 export class JalaliDateService {
-
   private _locale = 'fa-IR';
   private _calendar = 'persian';
   private _monthNames = [
@@ -22,10 +21,26 @@ export class JalaliDateService {
     'اسفند',
   ];
 
-  
+  private readonly _dayNames = {
+    long: [
+      'شنبه',
+      'یکشنبه',
+      'دوشنبه',
+      'سه‌شنبه',
+      'چهارشنبه',
+      'پنج‌شنبه',
+      'جمعه',
+    ],
+    short: ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'],
+    narrow: ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'],
+  };
 
   get monthNames(): string[] {
     return [...this._monthNames];
+  }
+
+  get dayNames(): { long: string[]; short: string[]; narrow: string[] } {
+    return { ...this._dayNames };
   }
 
   private breaks: number[] = [
@@ -68,9 +83,7 @@ export class JalaliDateService {
     );
   }
 
-
-
-  parse(value: any, parseFormat: string='yyyy/MM/dd'): Date | null {
+  parse(value: any, parseFormat: string = 'yyyy/MM/dd'): Date | null {
     if (value === null || value === undefined || value === '') {
       return null;
     }
@@ -83,6 +96,29 @@ export class JalaliDateService {
     // If it's a string
     if (typeof value === 'string') {
       return this.parseWithFormat(value, parseFormat);
+      // Handle yyyy/MM/dd format
+      // if (value.includes('/')) {
+      //   const regex = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/;
+      //   const match = regex.exec(value);
+
+      //   if (match) {
+      //     const year = parseInt(match[1], 10);
+      //     const month = parseInt(match[2], 10); // Convert to 0-based
+      //     const day = parseInt(match[3], 10);
+
+      //     try {
+      //       const gregorian = this.toGregorian(year, month, day);
+      //       return new Date(
+      //         gregorian.year,
+      //         gregorian.month - 1,
+      //         gregorian.date
+      //       );
+      //     } catch (error) {
+      //       console.error('Error parsing date:', error);
+      //       return null;
+      //     }
+      //   }
+      // }
     }
 
     // If it's a timestamp number
@@ -98,57 +134,70 @@ export class JalaliDateService {
     // Convert Persian digits to Latin if present
     const convertPersianToLatin = (str: string): string => {
       const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-      return str.replace(/[۰-۹]/g, char => String(persianDigits.indexOf(char)));
+      return str.replace(/[۰-۹]/g, (char) =>
+        String(persianDigits.indexOf(char))
+      );
     };
-    
+
     dateStr = convertPersianToLatin(dateStr);
-    
+
     // Define format tokens
     const tokens: Record<string, RegExp> = {
-      'yyyy': /(\d{4})/,
-      'yy': /(\d{2})/,
-      'MM': /(\d{2})/,
-      'M': /(\d{1,2})/,
-      'dd': /(\d{2})/,
-      'd': /(\d{1,2})/,
-      'HH': /(\d{2})/,
-      'H': /(\d{1,2})/,
-      'mm': /(\d{2})/,
-      'm': /(\d{1,2})/,
-      'ss': /(\d{2})/,
-      's': /(\d{1,2})/,
-      'SSS': /(\d{3})/,
-      'S': /(\d{1,3})/
+      yyyy: /(\d{4})/,
+      yy: /(\d{2})/,
+      MM: /(\d{2})/,
+      M: /(\d{1,2})/,
+      dd: /(\d{2})/,
+      d: /(\d{1,2})/,
+      HH: /(\d{2})/,
+      H: /(\d{1,2})/,
+      mm: /(\d{2})/,
+      m: /(\d{1,2})/,
+      ss: /(\d{2})/,
+      s: /(\d{1,2})/,
+      SSS: /(\d{3})/,
+      S: /(\d{1,3})/,
     };
-    
+
     // Replace format tokens with regex capturing groups
-    let regexPattern = '^' + format
-      .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
-      .replace(/yyyy|yy|MM|M|dd|d|HH|H|mm|m|ss|s|SSS|S/g, match => 
-        tokens[match].source
-      ) + '$';
+    let regexPattern =
+      '^' +
+      format
+        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
+        .replace(
+          /yyyy|yy|MM|M|dd|d|HH|H|mm|m|ss|s|SSS|S/g,
+          (match) => tokens[match].source
+        ) +
+      '$';
     const regex = new RegExp(regexPattern);
     const match = regex.exec(dateStr);
-    
+
     if (!match) {
       return null;
     }
-    
+
     // Extract values from the match
-    let year = 0, month = 0, day = 0;
-    let hour = 0, minute = 0, second = 0, millisecond = 0;
-    
+    let year = 0,
+      month = 0,
+      day = 0;
+    let hour = 0,
+      minute = 0,
+      second = 0,
+      millisecond = 0;
+
     let matchIndex = 1;
-    for (const token of format.match(/yyyy|yy|MM|M|dd|d|HH|H|mm|m|ss|s|SSS|S/g) || []) {
+    for (const token of format.match(
+      /yyyy|yy|MM|M|dd|d|HH|H|mm|m|ss|s|SSS|S/g
+    ) || []) {
       const value = parseInt(match[matchIndex], 10);
       matchIndex++;
-      
+
       switch (token) {
         case 'yyyy':
           year = value;
           break;
         case 'yy':
-          year = value < 40 ? 1400 + value : 1300 + value;
+          year = value < 50 ? 2000 + value : 1900 + value;
           break;
         case 'MM':
         case 'M':
@@ -176,7 +225,7 @@ export class JalaliDateService {
           break;
       }
     }
-    
+
     if (year && month && day) {
       try {
         const gregorian = this.toGregorian(year, month, day);
@@ -193,7 +242,7 @@ export class JalaliDateService {
         console.error('Error parsing date with format:', error);
       }
     }
-    
+
     return null;
   }
 
@@ -227,7 +276,7 @@ export class JalaliDateService {
     const milliseconds = date.getMilliseconds();
 
     // Get day of week (0 = Sunday, 6 = Saturday)
-    const dayOfWeek =  (date.getDay() + 1) % 7; 
+    const dayOfWeek = (date.getDay() + 1) % 7;
 
     // Create date formatter for locale-aware formatting
     const dateFormatter = new Intl.DateTimeFormat(this._locale, {
@@ -331,7 +380,7 @@ export class JalaliDateService {
       .replace(/EEEEEE/g, weekdayShort)
       .replace(/EEEEE/g, weekdayNarrow)
       .replace(/EEEE/g, weekdayLong)
-      .replace(/[E]+/g,weekdayAbbr)
+      .replace(/[E]+/g, weekdayAbbr);
 
     return result;
   }
@@ -480,5 +529,4 @@ export class JalaliDateService {
   private mod(a: number, b: number): number {
     return a - ~~(a / b) * b;
   }
-
 }
