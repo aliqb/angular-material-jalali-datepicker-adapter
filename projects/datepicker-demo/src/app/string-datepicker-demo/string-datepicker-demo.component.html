@@ -1,0 +1,24 @@
+<form class="form" [formGroup]="formGroup">
+  <mat-form-field
+    appearance="outline"
+    (click)="picker.open()"
+    style="width: 100%"
+    [hideRequiredMarker]="true"
+  >
+    <mat-label> تاریخ </mat-label>
+    <input
+      matInput
+      (focus)="picker.open()"
+      class="input-of-sdc"
+      [formControlName]="'basic'"
+      [matDatepicker]="picker"
+      autocomplete="off"
+    />
+    <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+    <mat-datepicker #picker></mat-datepicker>
+    <!-- <mat-error>
+      <input-error [errors]="control.errors"></input-error>
+    </mat-error> -->
+  </mat-form-field>
+  {{ formGroup.value.basic }}
+</form>

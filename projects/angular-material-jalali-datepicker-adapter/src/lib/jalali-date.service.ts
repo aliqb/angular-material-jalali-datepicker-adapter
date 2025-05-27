@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 
 @Injectable({
-  providedIn: 'root'
+  providedIn: 'root',
 })
 export class JalaliDateService {
   private _locale = 'fa-IR';
@@ -520,6 +520,18 @@ export class JalaliDateService {
     }
 
     return leap;
+  }
+
+  isLeapYear(year: number): boolean {
+    try {
+      const leapInfo = this.calculateLeap(year);
+      // In Persian calendar, leap years occur when the remainder is 0
+      // after dividing the leap cycle position by 4
+      return leapInfo === 0;
+    } catch (error) {
+      console.error('Error checking leap year:', error);
+      return false;
+    }
   }
 
   private div(a: number, b: number): number {
