@@ -8,8 +8,7 @@ import {
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import {  MaterialJalaliStringDateAdapter, JALALI_DATE_FORMATS } from 'AngularMaterialJalaliDatepickerAdapter';
-import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
+import { provideJalaiDateAdapter } from '../../../../angular-material-jalali-datepicker-adapter/src/public-api';
 
 @Component({
   selector: 'app-string-datepicker-demo',
@@ -22,12 +21,7 @@ import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/materia
   templateUrl: './string-datepicker-demo.component.html',
   styleUrl: './string-datepicker-demo.component.scss',
     providers: [
-    {
-      provide: DateAdapter,
-      useClass: MaterialJalaliStringDateAdapter,
-    },
-    { provide: MAT_DATE_LOCALE, useValue: 'fa-IR' },
-    { provide: MAT_DATE_FORMATS, useValue: JALALI_DATE_FORMATS },
+      provideJalaiDateAdapter('string')
   ],
 })
 export class StringDatepickerDemoComponent {

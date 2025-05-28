@@ -5,11 +5,10 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
-import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/material/core';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MaterialJalaliDateAdapter, JALALI_DATE_FORMATS } from 'AngularMaterialJalaliDatepickerAdapter';
+import { provideJalaiDateAdapter } from '../../../../angular-material-jalali-datepicker-adapter/src/public-api';
 
 @Component({
   selector: 'app-normal-datepicker-demo',
@@ -22,12 +21,8 @@ import { MaterialJalaliDateAdapter, JALALI_DATE_FORMATS } from 'AngularMaterialJ
   templateUrl: './normal-datepicker-demo.component.html',
   styleUrl: './normal-datepicker-demo.component.scss',
   providers: [
-    {
-      provide: DateAdapter,
-      useClass: MaterialJalaliDateAdapter,
-    },
-    { provide: MAT_DATE_LOCALE, useValue: 'fa-IR' },
-    { provide: MAT_DATE_FORMATS, useValue: JALALI_DATE_FORMATS },
+      provideJalaiDateAdapter()
+
   ],
 })
 export class NormalDatepickerDemoComponent {
