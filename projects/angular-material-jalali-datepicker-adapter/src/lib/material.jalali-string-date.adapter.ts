@@ -1,9 +1,9 @@
 import { inject } from '@angular/core';
 import { DateAdapter } from '@angular/material/core';
 import { JalaliDateService } from './jalali-date.service';
-import { PERSIAN_DATE_FORMATS } from './date-format';
+import { JALALI_DATE_FORMATS } from './date-format';
 
-export class MaterialPersianStringDateAdapter extends DateAdapter<string> {
+export class MaterialJalaliStringDateAdapter extends DateAdapter<string> {
   override invalid(): string {
     return 'INVALID_DATE';
   }
@@ -44,7 +44,7 @@ export class MaterialPersianStringDateAdapter extends DateAdapter<string> {
   }
 
   getDayOfWeek(date: string): number {
-    const dateObj = this.dateService.parse(date, PERSIAN_DATE_FORMATS.parse.dateInput);
+    const dateObj = this.dateService.parse(date, JALALI_DATE_FORMATS.parse.dateInput);
     if (!dateObj) return 0;
     // Convert JS day (0=Sun, 6=Sat) to Persian (0=Sat, 6=Fri)
     return (dateObj.getDay() + 1) % 7;
@@ -91,7 +91,7 @@ export class MaterialPersianStringDateAdapter extends DateAdapter<string> {
 
   today(): string {
     const today = new Date();
-    return this.dateService.format(today, PERSIAN_DATE_FORMATS.parse.dateInput);
+    return this.dateService.format(today, JALALI_DATE_FORMATS.parse.dateInput);
   }
 
   parse(value: any, parseFormat: string): string | null {
@@ -108,19 +108,19 @@ export class MaterialPersianStringDateAdapter extends DateAdapter<string> {
     if (typeof value === 'number') {
       const dateObj = new Date(value);
       if (this.dateService.isValid(dateObj)) {
-        return this.dateService.format(dateObj, PERSIAN_DATE_FORMATS.parse.dateInput);
+        return this.dateService.format(dateObj, JALALI_DATE_FORMATS.parse.dateInput);
       }
     }
     
     if (value instanceof Date && this.dateService.isValid(value)) {
-      return this.dateService.format(value, PERSIAN_DATE_FORMATS.parse.dateInput);
+      return this.dateService.format(value, JALALI_DATE_FORMATS.parse.dateInput);
     }
     
     return null;
   }
 
   format(date: string, displayFormat: string): string {
-    const dateObj = this.dateService.parse(date, PERSIAN_DATE_FORMATS.parse.dateInput);
+    const dateObj = this.dateService.parse(date, JALALI_DATE_FORMATS.parse.dateInput);
     if (!dateObj) return '';
     return this.dateService.format(dateObj, displayFormat);
   }
@@ -154,15 +154,15 @@ export class MaterialPersianStringDateAdapter extends DateAdapter<string> {
   }
 
   addCalendarDays(date: string, days: number): string {
-    const dateObject = this.dateService.parse(date, PERSIAN_DATE_FORMATS.parse.dateInput);
+    const dateObject = this.dateService.parse(date, JALALI_DATE_FORMATS.parse.dateInput);
     if (!dateObject) return date;
     
     dateObject.setDate(dateObject.getDate() + days);
-    return this.dateService.format(dateObject, PERSIAN_DATE_FORMATS.parse.dateInput);
+    return this.dateService.format(dateObject, JALALI_DATE_FORMATS.parse.dateInput);
   }
 
   toIso8601(date: string): string {
-    const dateObject = this.dateService.parse(date, PERSIAN_DATE_FORMATS.parse.dateInput);
+    const dateObject = this.dateService.parse(date, JALALI_DATE_FORMATS.parse.dateInput);
     if (!dateObject) return '';
     return dateObject.toISOString();
   }
@@ -173,7 +173,7 @@ export class MaterialPersianStringDateAdapter extends DateAdapter<string> {
 
   isValid(date: string | null): boolean {
     if (!date) return false;
-    const dateObj = this.dateService.parse(date, PERSIAN_DATE_FORMATS.parse.dateInput);
+    const dateObj = this.dateService.parse(date, JALALI_DATE_FORMATS.parse.dateInput);
     return dateObj !== null && this.dateService.isValid(dateObj);
   }
 
@@ -181,15 +181,15 @@ export class MaterialPersianStringDateAdapter extends DateAdapter<string> {
     if (!value) return null;
 
     if (typeof value === 'string') {
-      return this.parse(value, PERSIAN_DATE_FORMATS.parse.dateInput);
+      return this.parse(value, JALALI_DATE_FORMATS.parse.dateInput);
     }
 
     if (typeof value === 'number') {
-      return this.dateService.format(new Date(value), PERSIAN_DATE_FORMATS.parse.dateInput);
+      return this.dateService.format(new Date(value), JALALI_DATE_FORMATS.parse.dateInput);
     }
 
     if (value instanceof Date) {
-      return this.dateService.format(value, PERSIAN_DATE_FORMATS.parse.dateInput);
+      return this.dateService.format(value, JALALI_DATE_FORMATS.parse.dateInput);
     }
 
     return null;

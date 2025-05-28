@@ -1,4 +1,4 @@
-export const PERSIAN_DATE_FORMATS = {
+export const JALALI_DATE_FORMATS = {
   parse: {
     dateInput: 'yyyy/MM/dd',
   },

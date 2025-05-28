@@ -9,7 +9,7 @@ import { DateAdapter, MAT_DATE_FORMATS, MAT_DATE_LOCALE } from '@angular/materia
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { MaterialPersianDateAdapter, PERSIAN_DATE_FORMATS } from 'AngularMaterialJalaliDatepickerAdapter';
+import { MaterialJalaliDateAdapter, JALALI_DATE_FORMATS } from 'AngularMaterialJalaliDatepickerAdapter';
 
 @Component({
   selector: 'app-normal-datepicker-demo',
@@ -24,10 +24,10 @@ import { MaterialPersianDateAdapter, PERSIAN_DATE_FORMATS } from 'AngularMateria
   providers: [
     {
       provide: DateAdapter,
-      useClass: MaterialPersianDateAdapter,
+      useClass: MaterialJalaliDateAdapter,
     },
     { provide: MAT_DATE_LOCALE, useValue: 'fa-IR' },
-    { provide: MAT_DATE_FORMATS, useValue: PERSIAN_DATE_FORMATS },
+    { provide: MAT_DATE_FORMATS, useValue: JALALI_DATE_FORMATS },
   ],
 })
 export class NormalDatepickerDemoComponent {

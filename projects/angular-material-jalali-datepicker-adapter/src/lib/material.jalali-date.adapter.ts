@@ -1,9 +1,9 @@
 import { inject } from '@angular/core';
 import { DateAdapter } from '@angular/material/core';
 import { JalaliDateService } from './jalali-date.service';
-import { PERSIAN_DATE_FORMATS } from './date-format';
+import { JALALI_DATE_FORMATS } from './date-format';
 
-export class MaterialPersianDateAdapter extends DateAdapter<Date> {
+export class MaterialJalaliDateAdapter extends DateAdapter<Date> {
   dateService = inject(JalaliDateService);
 
   getYear(date: Date): number {
@@ -130,7 +130,7 @@ export class MaterialPersianDateAdapter extends DateAdapter<Date> {
     if (!value) return null;
 
     if (typeof value === 'string') {
-      return this.parse(value, PERSIAN_DATE_FORMATS.parse.dateInput);
+      return this.parse(value, JALALI_DATE_FORMATS.parse.dateInput);
     }
 
     if (typeof value === 'number') {
