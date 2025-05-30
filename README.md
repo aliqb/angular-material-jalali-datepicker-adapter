@@ -29,6 +29,9 @@ Or using yarn:
 yarn add angular-material-jalali-datepicker-adapter
 ```
 
+## Demo
+[stackblitz demo](https://stackblitz.com/edit/stackblitz-starters-3hhtwcfu?file=src%2Fmain.ts)
+
 ## Peer Dependencies
 
 This is developed and tested on angular and angular material 19 but it supposed to work with all previous and later supported version because there has not been any breaking change in material datepicker since introduction.
