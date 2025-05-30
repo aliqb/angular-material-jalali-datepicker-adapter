@@ -7,6 +7,7 @@ import {
 } from '@angular/forms';
 import { NormalDatepickerDemoComponent } from './normal-datepicker-demo/normal-datepicker-demo.component';
 import { StringDatepickerDemoComponent } from './string-datepicker-demo/string-datepicker-demo.component';
+import { JalaliDateService } from 'AngularMaterialJalaliDatepickerAdapter';
 
 @Component({
   selector: 'app-root',
@@ -27,5 +28,7 @@ export class AppComponent {
   formGroup = new FormGroup({
     basic: new FormControl(null, Validators.required),
   });
-  constructor() {}
+  constructor() {
+    const service = inject(JalaliDateService)
+  }
 }

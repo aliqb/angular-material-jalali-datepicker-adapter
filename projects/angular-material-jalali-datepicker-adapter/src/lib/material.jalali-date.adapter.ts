@@ -4,7 +4,7 @@ import { JalaliDateService } from './jalali-date.service';
 import { JALALI_DATE_FORMATS } from './date-format';
 
 export class MaterialJalaliDateAdapter extends DateAdapter<Date> {
-  dateService = inject(JalaliDateService);
+  private readonly dateService = inject(JalaliDateService);
 
   getYear(date: Date): number {
     return this.dateService.getYear(date);
@@ -28,11 +28,13 @@ export class MaterialJalaliDateAdapter extends DateAdapter<Date> {
   }
 
   getDateNames(): string[] {
-    return Array.from({ length: 31 }, (_, i) => String(i + 1));
+    // Cache the array since it's static
+    return this._dateNames ||= Array.from({ length: 31 }, (_, i) => String(i + 1));
   }
+  private _dateNames?: string[];
 
   getDayOfWeekNames(style: 'long' | 'short' | 'narrow'): string[] {
-    return this.dateService.dayNames[style];
+    return [...this.dateService.dayNames[style]];
   }
 
   getYearName(date: Date): string {
@@ -40,23 +42,13 @@ export class MaterialJalaliDateAdapter extends DateAdapter<Date> {
   }
 
   getFirstDayOfWeek(): number {
-    return 0; // Saturday is first day
+    return 0; // Saturday is first day in Persian calendar
   }
 
   getNumDaysInMonth(date: Date): number {
     const year = this.getYear(date);
-    const month = this.getMonth(date);
-
-    // First day of next month
-    const nextMonth = this.createDate(
-      month === 11 ? year + 1 : year,
-      month === 11 ? 0 : month + 1,
-      1
-    );
-
-    // Last day of current month
-    const lastDay = this.addCalendarDays(nextMonth, -1);
-    return this.getDate(lastDay);
+    const month = this.getMonth(date) + 1; // Convert to 1-based
+    return this.dateService.getDaysInMonth(year, month);
   }
 
   clone(date: Date): Date {
@@ -64,8 +56,18 @@ export class MaterialJalaliDateAdapter extends DateAdapter<Date> {
   }
 
   createDate(year: number, month: number, date: number): Date {
-    const gregorian = this.dateService.toGregorian(year, month + 1, date);
-    return new Date(gregorian.year, gregorian.month - 1, gregorian.date);
+    // Validate input parameters
+    if (!this.isValidJalaliInput(year, month + 1, date)) {
+      return this.invalid();
+    }
+
+    try {
+      const gregorian = this.dateService.toGregorian(year, month + 1, date);
+      const result = new Date(gregorian.year, gregorian.month - 1, gregorian.date);
+      return this.isValid(result) ? result : this.invalid();
+    } catch {
+      return this.invalid();
+    }
   }
 
   today(): Date {
@@ -81,33 +83,35 @@ export class MaterialJalaliDateAdapter extends DateAdapter<Date> {
   }
 
   addCalendarYears(date: Date, years: number): Date {
-    const pYear = this.getYear(date);
-    const pMonth = this.getMonth(date);
-    const pDay = this.getDate(date);
-    return this.createDate(pYear + years, pMonth, pDay);
+    if (!this.isValid(date)) return this.invalid();
+
+    try {
+      return this.dateService.addYears(date, years);
+    } catch {
+      return this.invalid();
+    }
   }
 
   addCalendarMonths(date: Date, months: number): Date {
-    const pYear = this.getYear(date);
-    const pMonth = this.getMonth(date);
-    const pDay = this.getDate(date);
+    if (!this.isValid(date)) return this.invalid();
 
-    const totalMonths = pMonth + months;
-    const newYear = pYear + Math.floor(totalMonths / 12);
-    const newMonth =
-      totalMonths < 0 ? 12 + (totalMonths % 12) : totalMonths % 12;
-
-    // Handle month overflow by adjusting day if needed
-    const maxDay = this._getMaxDayInMonth(newYear, newMonth);
-    const adjustedDay = Math.min(pDay, maxDay);
-
-    return this.createDate(newYear, newMonth, adjustedDay);
+    try {
+      return this.dateService.addMonths(date, months);
+    } catch {
+      return this.invalid();
+    }
   }
 
   addCalendarDays(date: Date, days: number): Date {
-    const result = this.clone(date);
-    result.setDate(result.getDate() + days);
-    return result;
+    if (!this.isValid(date)) return this.invalid();
+
+    try {
+      return this.dateService.addDays(date, days);
+    } catch {
+      const result = this.clone(date);
+      result.setDate(result.getDate() + days);
+      return result;
+    }
   }
 
   toIso8601(date: Date): string {
@@ -119,7 +123,7 @@ export class MaterialJalaliDateAdapter extends DateAdapter<Date> {
   }
 
   isValid(date: Date | null): boolean {
-    return date !== null && date instanceof Date && !isNaN(date.getTime());
+    return this.dateService.isValid(date);
   }
 
   invalid(): Date {
@@ -127,34 +131,33 @@ export class MaterialJalaliDateAdapter extends DateAdapter<Date> {
   }
 
   override deserialize(value: any): Date | null {
-    if (!value) return null;
-
-    if (typeof value === 'string') {
-      return this.parse(value, JALALI_DATE_FORMATS.parse.dateInput);
+    if (value == null || value === '') {
+      return null;
     }
 
-    if (typeof value === 'number') {
-      return new Date(value);
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed ? this.parse(trimmed, JALALI_DATE_FORMATS.parse.dateInput) : null;
+    }
+
+    if (typeof value === 'number' && !isNaN(value)) {
+      const date = new Date(value);
+      return this.isValid(date) ? date : null;
     }
 
     if (this.isDateInstance(value)) {
-      return this.clone(value);
+      return this.isValid(value) ? this.clone(value) : null;
     }
 
     return null;
   }
 
-  private _getMaxDayInMonth(year: number, month: number): number {
-    // Persian calendar: first 6 months have 31 days, next 5 have 30, last has 29/30
-    if (month < 6) return 31;
-    if (month < 11) return 30;
-
-    // Check if leap year for last month
-    const testDate = this.createDate(year, month, 1);
-    const nextYear = this.createDate(year + 1, 0, 1);
-    const daysBetween = Math.floor(
-      (nextYear.getTime() - testDate.getTime()) / (1000 * 60 * 60 * 24)
+  // Helper method for input validation
+  private isValidJalaliInput(year: number, month: number, day: number): boolean {
+    return (
+      Number.isInteger(year) && year > 0 && year <= 3178 &&
+      Number.isInteger(month) && month >= 1 && month <= 12 &&
+      Number.isInteger(day) && day >= 1 && day <= 31
     );
-    return daysBetween > 29 ? 30 : 29;
   }
 }

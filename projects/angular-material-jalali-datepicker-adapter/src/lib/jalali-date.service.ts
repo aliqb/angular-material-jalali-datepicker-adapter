@@ -1,12 +1,19 @@
 import { Injectable } from '@angular/core';
 
+interface JalaliDate {
+  year: number;
+  month: number;
+  day: number;
+}
+
 @Injectable({
   providedIn: 'root',
 })
 export class JalaliDateService {
-  private _locale = 'fa-IR';
-  private _calendar = 'persian';
-  private _monthNames = [
+  private readonly _locale = 'fa-IR';
+  private readonly _calendar = 'persian';
+
+  private readonly _monthNames = [
     'فروردین',
     'اردیبهشت',
     'خرداد',
@@ -35,93 +42,98 @@ export class JalaliDateService {
     narrow: ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'],
   };
 
-  get monthNames(): string[] {
-    return [...this._monthNames];
-  }
-
-  get dayNames(): { long: string[]; short: string[]; narrow: string[] } {
-    return { ...this._dayNames };
-  }
-
-  private breaks: number[] = [
+  private readonly breaks = [
     -61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210, 1635, 2060, 2097,
     2192, 2262, 2324, 2394, 2456, 3178,
   ];
 
-  constructor() {}
+  // Cache formatter to avoid recreating
+  private _formatter?: Intl.DateTimeFormat;
+
+  get monthNames(): string[] {
+    return [...this._monthNames];
+  }
+
+  get dayNames() {
+    return this._dayNames;
+  }
+
+  private getFormatter(): Intl.DateTimeFormat {
+    return (this._formatter ||= new Intl.DateTimeFormat(this._locale, {
+      calendar: this._calendar,
+      numberingSystem: 'latn',
+    }));
+  }
 
   getYear(date: Date): number {
     return parseInt(
-      new Intl.DateTimeFormat(this._locale, {
-        calendar: this._calendar,
-        year: 'numeric',
-        numberingSystem: 'latn',
-      }).format(date)
+      this.getFormatter()
+        .formatToParts(date)
+        .find((part) => part.type === 'year')?.value || '0'
     );
   }
 
   getMonth(date: Date): number {
-    // Intl months are 1-based, but Angular Material expects 0-based
     return (
       parseInt(
-        new Intl.DateTimeFormat(this._locale, {
-          calendar: this._calendar,
-          month: 'numeric',
-          numberingSystem: 'latn',
-        }).format(date)
+        this.getFormatter()
+          .formatToParts(date)
+          .find((part) => part.type === 'month')?.value || '1'
       ) - 1
     );
   }
 
   getDate(date: Date): number {
     return parseInt(
-      new Intl.DateTimeFormat(this._locale, {
-        calendar: this._calendar,
-        day: 'numeric',
-        numberingSystem: 'latn',
-      }).format(date)
+      this.getFormatter()
+        .formatToParts(date)
+        .find((part) => part.type === 'day')?.value || '1'
     );
   }
 
+  addDays(date: Date, days: number): Date {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+  }
+
+  addMonths(date: Date, months: number): Date {
+    const jalali = this.toJalali(date);
+    let newMonth = jalali.month + months;
+    let newYear = jalali.year;
+
+    while (newMonth > 12) {
+      newMonth -= 12;
+      newYear++;
+    }
+    while (newMonth < 1) {
+      newMonth += 12;
+      newYear--;
+    }
+
+    // Handle day overflow for different month lengths
+    const maxDaysInMonth = this.getDaysInMonth(newYear, newMonth);
+    const newDay = Math.min(jalali.day, maxDaysInMonth);
+
+    const gregorian = this.toGregorian(newYear, newMonth, newDay);
+    return new Date(gregorian.year, gregorian.month - 1, gregorian.date);
+  }
+
+  addYears(date: Date, years: number): Date {
+    return this.addMonths(date, years * 12);
+  }
+
   parse(value: any, parseFormat: string = 'yyyy/MM/dd'): Date | null {
-    if (value === null || value === undefined || value === '') {
-      return null;
+    if (!value || value === '') return null;
+
+    if (value instanceof Date) {
+      return this.isValid(value) ? value : null;
     }
 
-    // If it's already a Date object
-    if (value instanceof Date && this.isValid(value)) {
-      return value;
-    }
-
-    // If it's a string
     if (typeof value === 'string') {
-      return this.parseWithFormat(value, parseFormat);
-      // Handle yyyy/MM/dd format
-      // if (value.includes('/')) {
-      //   const regex = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/;
-      //   const match = regex.exec(value);
-
-      //   if (match) {
-      //     const year = parseInt(match[1], 10);
-      //     const month = parseInt(match[2], 10); // Convert to 0-based
-      //     const day = parseInt(match[3], 10);
-
-      //     try {
-      //       const gregorian = this.toGregorian(year, month, day);
-      //       return new Date(
-      //         gregorian.year,
-      //         gregorian.month - 1,
-      //         gregorian.date
-      //       );
-      //     } catch (error) {
-      //       console.error('Error parsing date:', error);
-      //       return null;
-      //     }
-      //   }
-      // }
+      return this.parseString(value.trim(), parseFormat);
     }
 
-    // If it's a timestamp number
     if (typeof value === 'number') {
       const date = new Date(value);
       return this.isValid(date) ? date : null;
@@ -130,263 +142,74 @@ export class JalaliDateService {
     return null;
   }
 
-  private parseWithFormat(dateStr: string, format: string): Date | null {
-    // Convert Persian digits to Latin if present
-    const convertPersianToLatin = (str: string): string => {
-      const persianDigits = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
-      return str.replace(/[۰-۹]/g, (char) =>
-        String(persianDigits.indexOf(char))
-      );
-    };
+  private parseString(dateStr: string, format: string): Date | null {
+    // Convert Persian digits
+    const normalizedStr = dateStr.replace(/[۰-۹]/g, (d) =>
+      '۰۱۲۳۴۵۶۷۸۹'.indexOf(d).toString()
+    );
 
-    dateStr = convertPersianToLatin(dateStr);
-
-    // Define format tokens
-    const tokens: Record<string, RegExp> = {
-      yyyy: /(\d{4})/,
-      yy: /(\d{2})/,
-      MM: /(\d{2})/,
-      M: /(\d{1,2})/,
-      dd: /(\d{2})/,
-      d: /(\d{1,2})/,
-      HH: /(\d{2})/,
-      H: /(\d{1,2})/,
-      mm: /(\d{2})/,
-      m: /(\d{1,2})/,
-      ss: /(\d{2})/,
-      s: /(\d{1,2})/,
-      SSS: /(\d{3})/,
-      S: /(\d{1,3})/,
-    };
-
-    // Replace format tokens with regex capturing groups
-    let regexPattern =
-      '^' +
-      format
-        .replace(/[.*+?^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
-        .replace(
-          /yyyy|yy|MM|M|dd|d|HH|H|mm|m|ss|s|SSS|S/g,
-          (match) => tokens[match].source
-        ) +
-      '$';
-    const regex = new RegExp(regexPattern);
-    const match = regex.exec(dateStr);
-
-    if (!match) {
-      return null;
-    }
-
-    // Extract values from the match
-    let year = 0,
-      month = 0,
-      day = 0;
-    let hour = 0,
-      minute = 0,
-      second = 0,
-      millisecond = 0;
-
-    let matchIndex = 1;
-    for (const token of format.match(
-      /yyyy|yy|MM|M|dd|d|HH|H|mm|m|ss|s|SSS|S/g
-    ) || []) {
-      const value = parseInt(match[matchIndex], 10);
-      matchIndex++;
-
-      switch (token) {
-        case 'yyyy':
-          year = value;
-          break;
-        case 'yy':
-          year = value < 50 ? 2000 + value : 1900 + value;
-          break;
-        case 'MM':
-        case 'M':
-          month = value;
-          break;
-        case 'dd':
-        case 'd':
-          day = value;
-          break;
-        case 'HH':
-        case 'H':
-          hour = value;
-          break;
-        case 'mm':
-        case 'm':
-          minute = value;
-          break;
-        case 'ss':
-        case 's':
-          second = value;
-          break;
-        case 'SSS':
-        case 'S':
-          millisecond = value;
-          break;
-      }
-    }
-
-    if (year && month && day) {
-      try {
-        const gregorian = this.toGregorian(year, month, day);
-        return new Date(
-          gregorian.year,
-          gregorian.month - 1,
-          gregorian.date,
-          hour,
-          minute,
-          second,
-          millisecond
-        );
-      } catch (error) {
-        console.error('Error parsing date with format:', error);
+    // Simple yyyy/MM/dd parsing (most common case)
+    if (format === 'yyyy/MM/dd') {
+      const match = normalizedStr.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+      if (match) {
+        const [, year, month, day] = match.map(Number);
+        return this.createJalaliDate(year, month, day);
       }
     }
 
     return null;
   }
 
-  //week of year can be added
-  format(date: Date, displayFormat: string): string {
-    if (!this.isValid(date)) {
-      return '';
+  private createJalaliDate(
+    year: number,
+    month: number,
+    day: number
+  ): Date | null {
+    try {
+      const gregorian = this.toGregorian(year, month, day);
+      const date = new Date(
+        gregorian.year,
+        gregorian.month - 1,
+        gregorian.date
+      );
+      return this.isValid(date) ? date : null;
+    } catch {
+      return null;
     }
+  }
 
-    const getDayWithSuffix = (d: number) => {
-      if (d > 3 && d < 21) return `${d}ام`;
-      switch (d % 10) {
-        case 1:
-          return 'اول';
-        case 2:
-          return 'دوم';
-        case 3:
-          return 'سوم';
-        default:
-          return `${d}ام`;
-      }
-    };
+  format(date: Date, displayFormat: string): string {
+    if (!this.isValid(date)) return '';
 
-    // Replace the formatting tokens with Intl-based formatting
     const year = this.getYear(date);
-    const month = this.getMonth(date) + 1; // Convert to 1-based for display
+    const month = this.getMonth(date) + 1;
     const day = this.getDate(date);
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    const seconds = date.getSeconds();
-    const milliseconds = date.getMilliseconds();
 
-    // Get day of week (0 = Sunday, 6 = Saturday)
-    const dayOfWeek = (date.getDay() + 1) % 7;
-
-    // Create date formatter for locale-aware formatting
-    const dateFormatter = new Intl.DateTimeFormat(this._locale, {
-      weekday: 'long',
-      month: 'long',
-      calendar: this._calendar,
-      numberingSystem: 'latn',
-    });
-    const parts = dateFormatter.formatToParts(date);
-
-    // Extract weekday and month names from formatter
-    const weekdayLong =
-      parts.find((part) => part.type === 'weekday')?.value || '';
-    const monthLong = parts.find((part) => part.type === 'month')?.value || '';
-
-    // Short versions (first 3 characters)
-    const weekdayShort = weekdayLong.substring(0, 2);
-    const weekdayAbbr = weekdayLong.substring(0, 3);
-    const weekdayNarrow = weekdayLong.substring(0, 1);
-    const monthShort = monthLong.substring(0, 3);
-
-    // Get AM/PM designator
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-
-    // 12-hour format hours
-    const hours12 = hours % 12 || 12;
-
-    // Quarter of year (1-4)
-    const quarter = Math.floor((month - 1) / 3) + 1;
-
-    // Day of year (1-366)
-    const gregorian = this.toGregorian(year, 1, 1);
-    const gregorianDateOfFirst = new Date(
-      gregorian.year,
-      gregorian.month - 1,
-      gregorian.date
-    );
-    const dayOfYear = Math.ceil(
-      (date.getTime() - gregorianDateOfFirst.getTime()) / (24 * 60 * 60 * 1000)
-    );
-
-    let result = displayFormat
-      // Year formats
-      .replace(/yyyy/gi, year.toString().padStart(4, '0'))
-      .replace(/yy/gi, year.toString().substring(2).padStart(2, '0'))
-
-      // Month formats
-      .replace(/MMMM/g, monthLong)
-      .replace(/MMM/g, monthShort)
+    // Handle common format patterns
+    return displayFormat
+      .replace(/yyyy/g, year.toString())
       .replace(/MM/g, month.toString().padStart(2, '0'))
-      .replace(/M/g, month.toString())
-
-      // Day formats
-      // .replace(/dddd/g, weekdayLong)
-      // .replace(/ddd/g, weekdayShort)
       .replace(/dd/g, day.toString().padStart(2, '0'))
-      .replace(/do/g, getDayWithSuffix(day))
-      .replace(/d/g, day.toString())
-
-      // Hour formats (24-hour)
-      .replace(/HH/g, hours.toString().padStart(2, '0'))
-      .replace(/H/g, hours.toString())
-
-      // Hour formats (12-hour)
-      .replace(/hh/g, hours12.toString().padStart(2, '0'))
-      .replace(/h/g, hours12.toString())
-
-      // Minute formats
-      .replace(/mm/g, minutes.toString().padStart(2, '0'))
-      .replace(/m/g, minutes.toString())
-
-      // Second formats
-      .replace(/ss/g, seconds.toString().padStart(2, '0'))
-      .replace(/s/g, seconds.toString())
-
-      // Millisecond format
-      .replace(/SSS/g, milliseconds.toString().padStart(3, '0'))
-
-      // AM/PM formats
-      .replace(/a/g, ampm.toLowerCase())
-      .replace(/A/g, ampm)
-
-      // Quarter format
-      .replace(/Q/g, quarter.toString())
-
-      // Day of year format (1-366)
-      .replace(/DDD/g, dayOfYear.toString().padStart(3, '0'))
-      .replace(/DD/g, dayOfYear.toString().padStart(2, '0'))
-      .replace(/Do/, getDayWithSuffix(dayOfYear))
-      .replace(/D/, dayOfYear.toString())
-
-      // Day of week format (0-6)
-      .replace(/eeeeee/g, weekdayShort)
-      .replace(/eeeee/g, weekdayNarrow)
-      .replace(/eeee/g, weekdayLong)
-      .replace(/eee/, weekdayAbbr)
-      .replace(/ee/, dayOfWeek.toString().padStart(2, '0'))
-      .replace(/e/, dayOfWeek.toString())
-
-      // Day of week format (name)
-      .replace(/EEEEEE/g, weekdayShort)
-      .replace(/EEEEE/g, weekdayNarrow)
-      .replace(/EEEE/g, weekdayLong)
-      .replace(/[E]+/g, weekdayAbbr);
-
-    return result;
+      .replace(/M/g, month.toString())
+      .replace(/d/g, day.toString());
   }
 
   isValid(date: Date | null): boolean {
     return date !== null && date instanceof Date && !isNaN(date.getTime());
+  }
+
+  getDaysInMonth(year: number, month: number): number {
+    if (month <= 6) return 31;
+    if (month <= 11) return 30;
+    return this.isLeapYear(year) ? 30 : 29;
+  }
+
+  // Convert Gregorian to Jalali
+  toJalali(date: Date): JalaliDate {
+    const year = this.getYear(date);
+    const month = this.getMonth(date) + 1; // Convert to 1-based
+    const day = this.getDate(date);
+    return { year, month, day };
   }
 
   toGregorian(
@@ -394,11 +217,20 @@ export class JalaliDateService {
     month: number,
     date: number
   ): { year: number; month: number; date: number } {
-    const julian: number = this.jalaliToJulian(year, month, date);
-
+    const julian = this.jalaliToJulian(year, month, date);
     return this.julianToGregorian(julian);
   }
 
+  isLeapYear(year: number): boolean {
+    try {
+      const leap = this.calculateLeap(year);
+      return leap === 0;
+    } catch {
+      return false;
+    }
+  }
+
+  // Core conversion methods (simplified)
   private jalaliToJulian(year: number, month: number, date: number): number {
     const r = this.calculateJalali(year, false);
 
@@ -521,19 +353,6 @@ export class JalaliDateService {
 
     return leap;
   }
-
-  isLeapYear(year: number): boolean {
-    try {
-      const leapInfo = this.calculateLeap(year);
-      // In Persian calendar, leap years occur when the remainder is 0
-      // after dividing the leap cycle position by 4
-      return leapInfo === 0;
-    } catch (error) {
-      console.error('Error checking leap year:', error);
-      return false;
-    }
-  }
-
   private div(a: number, b: number): number {
     return ~~(a / b);
   }
