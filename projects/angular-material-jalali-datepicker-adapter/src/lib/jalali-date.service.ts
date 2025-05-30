@@ -184,9 +184,13 @@ export class JalaliDateService {
     const year = this.getYear(date);
     const month = this.getMonth(date) + 1;
     const day = this.getDate(date);
+    const monthLong = this.monthNames[month - 1];
+    const monthShort = monthLong.slice(0, 3);
 
     // Handle common format patterns
     return displayFormat
+      .replace(/MMMM/g, monthLong)
+      .replace(/MMM/g, monthShort)
       .replace(/yyyy/g, year.toString())
       .replace(/MM/g, month.toString().padStart(2, '0'))
       .replace(/dd/g, day.toString().padStart(2, '0'))
@@ -199,8 +203,8 @@ export class JalaliDateService {
   }
 
   getDaysInMonth(year: number, month: number): number {
-    if (month <= 6) return 31;
-    if (month <= 11) return 30;
+    if (month < 6) return 31;
+    if (month < 11) return 30;
     return this.isLeapYear(year) ? 30 : 29;
   }
 

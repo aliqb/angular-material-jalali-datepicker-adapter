@@ -7,27 +7,27 @@ export class MaterialJalaliStringDateAdapter extends DateAdapter<string> {
   override invalid(): string {
     return 'INVALID_DATE';
   }
-  
+
   dateService = inject(JalaliDateService);
 
   private getDateParts(date: string): { year: number; month: number; day: number } {
     if (!date || typeof date !== 'string') {
       throw new Error('Invalid date string');
     }
-    
+
     const parts = date.split('/');
     if (parts.length !== 3) {
       throw new Error('Invalid date format');
     }
-    
+
     const year = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1; // Convert to 0-based
     const day = parseInt(parts[2], 10);
-    
+
     if (isNaN(year) || isNaN(month) || isNaN(day)) {
       throw new Error('Invalid date components');
     }
-    
+
     return { year, month, day };
   }
 
@@ -55,11 +55,13 @@ export class MaterialJalaliStringDateAdapter extends DateAdapter<string> {
   }
 
   getDateNames(): string[] {
-    return Array.from({ length: 31 }, (_, i) => String(i + 1));
+    // Cache the array since it's static
+    return this._dateNames ||= Array.from({ length: 31 }, (_, i) => String(i + 1));
   }
+  private _dateNames?: string[];
 
   getDayOfWeekNames(style: 'long' | 'short' | 'narrow'): string[] {
-    return this.dateService.dayNames[style];
+    return [...this.dateService.dayNames[style]];
   }
 
   getYearName(date: string): string {
@@ -71,8 +73,9 @@ export class MaterialJalaliStringDateAdapter extends DateAdapter<string> {
   }
 
   getNumDaysInMonth(date: string): number {
-    const { year, month } = this.getDateParts(date);
-    return this._getMaxDayInMonth(year, month);
+    const year = this.getYear(date);
+    const month = this.getMonth(date) + 1; // Convert to 1-based
+    return this.dateService.getDaysInMonth(year, month);
   }
 
   clone(date: string): string {
@@ -83,9 +86,9 @@ export class MaterialJalaliStringDateAdapter extends DateAdapter<string> {
     // Ensure valid ranges
     const validYear = Math.max(1, year);
     const validMonth = Math.max(0, Math.min(11, month));
-    const maxDays = this._getMaxDayInMonth(validYear, validMonth);
+    const maxDays = this.dateService.getDaysInMonth(validYear, validMonth);
     const validDate = Math.max(1, Math.min(maxDays, date));
-    
+
     return `${validYear}/${(validMonth + 1).toString().padStart(2, '0')}/${validDate.toString().padStart(2, '0')}`;
   }
 
@@ -96,7 +99,7 @@ export class MaterialJalaliStringDateAdapter extends DateAdapter<string> {
 
   parse(value: any, parseFormat: string): string | null {
     if (!value) return null;
-    
+
     if (typeof value === 'string') {
       // If it's already in the correct format, validate and return as-is
       if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(value)) {
@@ -104,18 +107,18 @@ export class MaterialJalaliStringDateAdapter extends DateAdapter<string> {
         return dateObj ? value : null;
       }
     }
-    
+
     if (typeof value === 'number') {
       const dateObj = new Date(value);
       if (this.dateService.isValid(dateObj)) {
         return this.dateService.format(dateObj, JALALI_DATE_FORMATS.parse.dateInput);
       }
     }
-    
+
     if (value instanceof Date && this.dateService.isValid(value)) {
       return this.dateService.format(value, JALALI_DATE_FORMATS.parse.dateInput);
     }
-    
+
     return null;
   }
 
@@ -140,14 +143,14 @@ export class MaterialJalaliStringDateAdapter extends DateAdapter<string> {
     const totalMonths = pMonth + months;
     const newYear = pYear + Math.floor(totalMonths / 12);
     let newMonth = totalMonths % 12;
-    
+
     // Handle negative months
     if (newMonth < 0) {
       newMonth = 12 + newMonth;
     }
 
     // Handle month overflow by adjusting day if needed
-    const maxDay = this._getMaxDayInMonth(newYear, newMonth);
+    const maxDay = this.dateService.getDaysInMonth(newYear, newMonth);
     const adjustedDay = Math.min(pDay, maxDay);
 
     return this.createDate(newYear, newMonth, adjustedDay);
@@ -156,7 +159,7 @@ export class MaterialJalaliStringDateAdapter extends DateAdapter<string> {
   addCalendarDays(date: string, days: number): string {
     const dateObject = this.dateService.parse(date, JALALI_DATE_FORMATS.parse.dateInput);
     if (!dateObject) return date;
-    
+
     dateObject.setDate(dateObject.getDate() + days);
     return this.dateService.format(dateObject, JALALI_DATE_FORMATS.parse.dateInput);
   }
@@ -195,12 +198,4 @@ export class MaterialJalaliStringDateAdapter extends DateAdapter<string> {
     return null;
   }
 
-  private _getMaxDayInMonth(year: number, month: number): number {
-    // Persian calendar: first 6 months (0-5) have 31 days, next 5 months (6-10) have 30, last month (11) has 29/30
-    if (month < 6) return 31;   // Farvardin to Shahrivar (months 0-5)
-    if (month < 11) return 30;  // Mehr to Bahman (months 6-10)
-    
-    // Esfand (month 11) - check if it's a leap year
-    return this.dateService.isLeapYear(year) ? 30 : 29;
-  }
 }

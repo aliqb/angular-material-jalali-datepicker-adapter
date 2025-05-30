@@ -47,7 +47,7 @@ export class MaterialJalaliDateAdapter extends DateAdapter<Date> {
 
   getNumDaysInMonth(date: Date): number {
     const year = this.getYear(date);
-    const month = this.getMonth(date) + 1; // Convert to 1-based
+    const month = this.getMonth(date); // Convert to 1-based
     return this.dateService.getDaysInMonth(year, month);
   }
 
