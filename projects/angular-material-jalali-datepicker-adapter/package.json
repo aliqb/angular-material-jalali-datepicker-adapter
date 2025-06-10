@@ -1,6 +1,8 @@
 {
   "name": "angular-material-jalali-datepicker-adapter",
-  "version": "0.0.1",
+  "description": "Jalali date adapter for Angular Material",
+  "version": "1.0.1",
+  "author": "Ali QB",
   "peerDependencies": {
     "@angular/common": ">=5",
     "@angular/core": ">=5",
@@ -12,5 +14,20 @@
   "devDependencies": {
     "@angular/material": ">=5"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "keywords": [
+    "jalali",
+    "shamsi",
+    "khorshidi",
+    "hijri",
+    "persian",
+    "angular material",
+    "datepicker"
+  ],
+  "homepage": "https://github.com/aliqb/angular-material-jalali-datepicker-adapter",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aliqb/angular-material-jalali-datepicker-adapter"
+  },
+  "license": "MIT"
 }
